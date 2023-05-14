@@ -1,7 +1,8 @@
 import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic } from 'homebridge';
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
-import { ExamplePlatformAccessory } from './platformAccessory';
+import { TuyaMqttGarageDoorAccessory } from './platformAccessory';
+import { MqttClient } from './mqtt_client'
 
 /**
  * HomebridgePlatform
@@ -11,6 +12,7 @@ import { ExamplePlatformAccessory } from './platformAccessory';
 export class TuyaMqttGarageDoorPlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
   public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
+  public readonly mqtt_client: MqttClient
 
   // this is used to track restored cached accessories
   public readonly accessories: PlatformAccessory[] = [];
@@ -18,9 +20,10 @@ export class TuyaMqttGarageDoorPlatform implements DynamicPlatformPlugin {
   constructor(
     public readonly log: Logger,
     public readonly config: PlatformConfig,
-    public readonly api: API,
-  ) {
+    public readonly api: API) 
+  {
     this.log.debug('Finished initializing platform:', this.config.name);
+    this.mqtt_client = new MqttClient(log, config)
 
     // When this event is fired it means Homebridge has restored all cached accessories from disk.
     // Dynamic Platform plugins should only register new accessories after this event was fired,
@@ -87,7 +90,7 @@ export class TuyaMqttGarageDoorPlatform implements DynamicPlatformPlugin {
 
         // create the accessory handler for the restored accessory
         // this is imported from `platformAccessory.ts`
-        new ExamplePlatformAccessory(this, existingAccessory);
+        new TuyaMqttGarageDoorAccessory(this, existingAccessory);
 
         // it is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, eg.:
         // remove platform accessories when no longer present
@@ -106,7 +109,7 @@ export class TuyaMqttGarageDoorPlatform implements DynamicPlatformPlugin {
 
         // create the accessory handler for the newly create accessory
         // this is imported from `platformAccessory.ts`
-        new ExamplePlatformAccessory(this, accessory);
+        new TuyaMqttGarageDoorAccessory(this, accessory);
 
         // link the accessory to your platform
         this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);

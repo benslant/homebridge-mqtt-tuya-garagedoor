@@ -1,5 +1,4 @@
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
-
 import { TuyaMqttGarageDoorPlatform } from './platform';
 
 /**
@@ -7,7 +6,7 @@ import { TuyaMqttGarageDoorPlatform } from './platform';
  * An instance of this class is created for each accessory your platform registers
  * Each accessory may expose multiple services of different service types.
  */
-export class ExamplePlatformAccessory {
+export class TuyaMqttGarageDoorAccessory {
   private service: Service;
 
   /**
