@@ -23,11 +23,11 @@ class TuyaGarageDoor {
 
     //initial setup
     this.log = log;
+    this.log("trying to log something")
     this.lastOpened = new Date();
     this.service = new Service.GarageDoorOpener(this.name, this.name);
     this.setupGarageDoorOpenerService(this.service);
 
-    this.log.debug("trying to log something")
     const client = mqtt.connect(config.mqtt.server)
     client.on('connect', function () {
         log('mqtt connected');
