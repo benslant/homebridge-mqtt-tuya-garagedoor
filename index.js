@@ -23,7 +23,7 @@ class TuyaGarageDoor {
 
     //initial setup
     this.log = log;
-    this.log("trying to log something")
+    this.log.debug("trying to log something")
     this.lastOpened = new Date();
     this.service = new Service.GarageDoorOpener(this.name, this.name);
     this.setupGarageDoorOpenerService(this.service);
