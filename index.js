@@ -27,7 +27,7 @@ class TuyaGarageDoor {
     this.service = new Service.GarageDoorOpener(this.name, this.name);
     this.setupGarageDoorOpenerService(this.service);
 
-    const client = mqtt.connect(config.mqtt.address)
+    const client = mqtt.connect(config.mqtt.server)
     client.on('connect', function () {
         log('mqtt connected');
     });
@@ -44,9 +44,33 @@ class TuyaGarageDoor {
     return [this.informationService, this.service];
   }
 
-  setupGarageDoorOpenerService (service) {
-    rpio.open(this.doorSwitchPin, rpio.OUTPUT, rpio.LOW);
+  congifure_mqtt_topics(name, serviceConfig) {
+    const client = this.client;
+    const log = this.log;
 
+    client.on('message', this.processMessage.bind(this, 'action', ['zigbee2mqtt/Garage Door']));
+    client.on('message', this.processMessage.bind(this, 'garage_door_contact', ['zigbee2mqtt/Garage Door']));
+    char.on('set', this.publishTopic.bind(this, 'action', ['zigbee2mqtt/Garage Door']));
+    char.on('set', this.publishTopic.bind(this, 'garage_door_contact', ['zigbee2mqtt/Garage Door']));
+
+    // const service = new Service[serviceConfig.type](name);
+    // const allCharNames = Array.from(new Set(Object.keys(serviceConfig.props || {}).concat(Object.keys(serviceConfig.topics || {}))));
+    // allCharNames.forEach(charName => {
+    //     const char = service.getCharacteristic(Characteristic[charName])
+    //     if (serviceConfig.props && charName in serviceConfig.props) {
+    //         char.setProps(serviceConfig.props[charName]);
+    //     }
+    //     if (serviceConfig.topics && charName in serviceConfig.topics) {
+    //         const topicDefines = serviceConfig.topics[charName];
+    //         this.subscribeTopics(char, topicDefines);
+    //         client.on('message', this.processMessage.bind(this, char, topicDefines));
+    //         char.on('set', this.publishTopic.bind(this, char, topicDefines));
+    //     }
+    // });
+    return service;
+  }
+
+  setupGarageDoorOpenerService (service) {
     this.service.setCharacteristic(Characteristic.TargetDoorState, Characteristic.TargetDoorState.CLOSED);
     this.service.setCharacteristic(Characteristic.CurrentDoorState, Characteristic.CurrentDoorState.CLOSED);
 
@@ -78,13 +102,13 @@ class TuyaGarageDoor {
       });
   }
 
-  openGarageDoor (callback) {
+  triggerGarageDoor(callback) {
     //mqtt messages here
-    this.log('Opening the garage door for...');
+    this.triggerGarageDoor()
+    this.log('Triggering the garage door for...');
     this.simulateGarageDoorOpening();
     callback();
   }
-
 
   simulateGarageDoorOpening () {
     this.service.setCharacteristic(Characteristic.CurrentDoorState, Characteristic.CurrentDoorState.OPENING);
@@ -112,7 +136,6 @@ class TuyaGarageDoor {
   }
 
   processMessage(char, topicDefines, topic, message) {
-    const client = this.client;
     const log = this.log;
     const payload = JSON.parse(message);
 

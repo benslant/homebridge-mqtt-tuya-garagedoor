@@ -1,0 +1,31 @@
+{
+    "name": "homebridge-mqtt-tuya-garagedoor",
+    "version": "0.0.1",
+    "description": "Garage Door Opener plugin for Homebridge to work with z2m and Tuya",
+    "author": "Ben Caldwell",
+    "license": "MIT",
+    "repository": {
+      "type": "git",
+      "url": "git://github.com/bencaldwell/homebridge-mqtt-tuya-garagedoor.git"
+    },
+    "bugs": {
+      "url": "https://github.com/bencaldwell/homebridge-mqtt-tuya-garagedoor/issues"
+    },
+    "keywords": [
+      "homebridge-plugin",
+      "homebridge",
+      "garage",
+      "garagedoor",
+      "tuya"
+    ],
+    "engines": {
+      "node": ">=6.4.0",
+      "homebridge": ">=0.3.0"
+    },
+    "dependencies": {
+        "mqtt": "^2.18.8"
+    },
+    "devDependencies": {},
+    "scripts": {}
+  }
+  
