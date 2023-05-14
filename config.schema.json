@@ -6,8 +6,6 @@
     "footerDisplay": "For more information about the [configuration options](https://z2m.dev/config.html), please refer to the [plugin website](https://z2m.dev/).",
     "schema": {
       "type": "object",
-      "definitions": {       
-      },
       "properties": {
         "mqtt": {
           "title": "MQTT",
