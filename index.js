@@ -15,11 +15,11 @@ class TuyaGarageDoor {
   constructor (log, config) {
 
     //get config values
-    this.name = config['name'];
-    this.doorSwitchPin = config['doorSwitchPin'] || 12;
-    this.simulateTimeOpening = config['simulateTimeOpening'] || 15;
-    this.simulateTimeOpen = config['simulateTimeOpen'] || 30;
-    this.simulateTimeClosing = config['simulateTimeClosing'] || 15;
+    // this.name = config['name'];
+    // this.doorSwitchPin = config['doorSwitchPin'] || 12;
+    // this.simulateTimeOpening = config['simulateTimeOpening'] || 15;
+    // this.simulateTimeOpen = config['simulateTimeOpen'] || 30;
+    // this.simulateTimeClosing = config['simulateTimeClosing'] || 15;
 
     //initial setup
     this.log = log;
@@ -27,6 +27,7 @@ class TuyaGarageDoor {
     this.service = new Service.GarageDoorOpener(this.name, this.name);
     this.setupGarageDoorOpenerService(this.service);
 
+    this.log.debug("trying to log something")
     const client = mqtt.connect(config.mqtt.server)
     client.on('connect', function () {
         log('mqtt connected');
