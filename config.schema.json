@@ -1,6 +1,6 @@
 {
 "pluginAlias": "homebridge-mqtt-tuya-garagedoor",
-"pluginType": "accessory",
+"pluginType": "platform",
 "singular": true,
 "headerDisplay": "Please use the same MQTT configuration as you have used for your Zigbee2MQTT installation. Device configurations are optional.",
 "footerDisplay": "For more information about the [configuration options](https://z2m.dev/config.html), please refer to the [plugin website](https://z2m.dev/).",
