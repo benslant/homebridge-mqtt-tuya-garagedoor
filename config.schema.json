@@ -25,6 +25,13 @@
                 "required": true,
                 "default": "mqtt://localhost:1883",
                 "placeholder": "mqtt://localhost:1883"
+            },
+            "door": {
+                "title": "Display Name",
+                "type": "string",
+                "required": "true",
+                "default": "Garage Door",
+                "placeholder": "Garage Door"
             }
             }
         }

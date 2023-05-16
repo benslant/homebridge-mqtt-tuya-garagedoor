@@ -1,19 +1,21 @@
 import { Logger, PlatformConfig } from 'homebridge';
 import { connect, Client } from "mqtt"
+import * as events from 'events'
 
-export class MqttClient {
+export class Z2MMqttClient extends events.EventEmitter {
     public readonly client: Client
     public readonly log: Logger
 
     constructor(public readonly logger: Logger,
                 public readonly config: PlatformConfig) 
     {
+        super();
         this.log = logger
         let handler_object = this
         let client = connect(config.mqtt.server)
 
         client.on('connect', function () {
-            client.subscribe('zigbee2mqtt/Garrage Door', function (err) {
+            client.subscribe('zigbee2mqtt/Garage Door', function (err) {
               if (!err) {
                 logger.info('subscribed')
               }
@@ -21,14 +23,11 @@ export class MqttClient {
           })
         client.on('message', this.processMessage.bind(this));
         this.client = client
-        // this.client.on('connect', function () {
-        //     handler_object.handle_client_connect()
-        // });
     }
 
     handle_client_connect() {
         this.log.info('mqtt connected');
-        this.subscribeTopics('zigbe2mqtt/Garrage Door')
+        this.subscribeTopics('zigbee2mqtt/Garage Door')
     }
 
     publishTopic(char, topicDefines, state, callback) {
@@ -54,7 +53,7 @@ export class MqttClient {
         // }
         // Object.keys(topicDefines.props || {}).forEach(propKey => {
         //     if (topicDefines.props[propKey] == topic) {
-        //         char.setProps({
+        //         char.setProp({
         //             [propKey]: payload.value,
         //         });
         //         log.info(char.displayName + ' ' + propKey + ' updated to ' + payload.value);

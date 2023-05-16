@@ -2,7 +2,7 @@ import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, 
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { TuyaMqttGarageDoorAccessory } from './platformAccessory';
-import { MqttClient } from './mqtt_client'
+import { Z2MMqttClient } from './mqtt_client'
 
 /**
  * HomebridgePlatform
@@ -12,7 +12,8 @@ import { MqttClient } from './mqtt_client'
 export class TuyaMqttGarageDoorPlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
   public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
-  public readonly mqtt_client: MqttClient
+  public readonly mqtt_client: Z2MMqttClient
+  public readonly configuration: PlatformConfig
 
   // this is used to track restored cached accessories
   public readonly accessories: PlatformAccessory[] = [];
@@ -22,8 +23,9 @@ export class TuyaMqttGarageDoorPlatform implements DynamicPlatformPlugin {
     public readonly config: PlatformConfig,
     public readonly api: API) 
   {
-    this.log.debug('Finished initializing platform:', this.config.name);
-    this.mqtt_client = new MqttClient(log, config)
+    this.configuration = config
+    this.log.debug('Finished initializing platform:', this.configuration.name);
+    this.mqtt_client = new Z2MMqttClient(log, config)
 
     // When this event is fired it means Homebridge has restored all cached accessories from disk.
     // Dynamic Platform plugins should only register new accessories after this event was fired,
@@ -59,12 +61,8 @@ export class TuyaMqttGarageDoorPlatform implements DynamicPlatformPlugin {
     // or a user-defined array in the platform config.
     const exampleDevices = [
       {
-        exampleUniqueId: 'ABCD',
-        exampleDisplayName: 'Bedroom',
-      },
-      {
-        exampleUniqueId: 'EFGH',
-        exampleDisplayName: 'Kitchen',
+        exampleUniqueId: 'TuYa-PJ-ZGD01',
+        exampleDisplayName: this.configuration.door.displayname,
       },
     ];
 
