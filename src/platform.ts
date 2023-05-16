@@ -88,7 +88,7 @@ export class TuyaMqttGarageDoorPlatform implements DynamicPlatformPlugin {
 
         // create the accessory handler for the restored accessory
         // this is imported from `platformAccessory.ts`
-        new TuyaMqttGarageDoorAccessory(this, existingAccessory);
+        new TuyaMqttGarageDoorAccessory(this, existingAccessory, this.mqtt_client);
 
         // it is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, eg.:
         // remove platform accessories when no longer present

@@ -45,7 +45,8 @@ export class Z2MMqttClient extends events.EventEmitter {
         const log = this.log;
         const payload = JSON.parse(message);
 
-        log.info('',message.toString())
+        this.emit('garage_door_contact', payload.garage_door_contact)
+        this.emit('trigger', payload.trigger)
 
         // if (topicDefines.get == topic) {
         //     char.updateValue(payload.value);

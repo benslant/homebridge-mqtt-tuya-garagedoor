@@ -26,7 +26,9 @@ export class TuyaMqttGarageDoorAccessory {
               private readonly mqqt_client: Z2MMqttClient) 
   {
     this.client = mqqt_client
-    this.client
+    this.client.on('garage_door_contact', (open) => {
+      this.update_current_door_state(open)}
+      )
     // set accessory information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
       .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Default-Manufacturer')
@@ -80,6 +82,20 @@ export class TuyaMqttGarageDoorAccessory {
     // if you need to return an error to show the device as "Not Responding" in the Home app:
     // throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     return currentDoorState;
+  }
+
+  update_current_door_state(closed: boolean)
+  {
+    if(closed)
+    {
+      this.service.updateCharacteristic(this.platform.Characteristic.CurrentDoorState, 
+                                        this.platform.Characteristic.CurrentDoorState.CLOSED)
+    } else
+    {
+      this.service.updateCharacteristic(this.platform.Characteristic.CurrentDoorState,
+                                        this.platform.Characteristic.CurrentDoorState.OPEN)
+    }
+    this.platform.log.debug('Received door state ->', closed);
   }
 
     /**
