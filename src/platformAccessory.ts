@@ -2,11 +2,8 @@ import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { Characteristic } from 'hap-nodejs';
 import { TuyaMqttGarageDoorPlatform } from './platform';
 import { Z2MMqttClient } from './mqtt_client';
+import { TuyaGarageDoorStateMachine } from './statemachine'
 
-enum DoorState {
-  DoorDown = 0,
-  DownUp = 1,
-}
 
 /**
  * Platform Accessory
@@ -16,6 +13,10 @@ enum DoorState {
 export class TuyaMqttGarageDoorAccessory {
   private service: Service;
   private client: Z2MMqttClient;
+  private statemachine: TuyaGarageDoorStateMachine;
+  private currentState = {
+    status: 'initialize'
+  }
 
   private state = {
     targetDoorState: Characteristic.TargetDoorState.CLOSED,
@@ -26,6 +27,8 @@ export class TuyaMqttGarageDoorAccessory {
               private readonly accessory: PlatformAccessory,
               private readonly mqqt_client: Z2MMqttClient) 
   {
+    this.statemachine = new TuyaGarageDoorStateMachine(this, this.platform.log)
+    this.currentState = this.statemachine.getInitialState()
     this.client = mqqt_client
     this.client.on('garage_door_contact', (open) => {
       this.handle_mqtt_update_current_door_state(open)}
@@ -60,12 +63,21 @@ export class TuyaMqttGarageDoorAccessory {
     // implement your own code to turn your device on/off
     this.state.targetDoorState = value as number
     this.platform.log.debug('Set Door Target state ->', this.state.targetDoorState);
-    this.processDoorState()
+    let event = 'DOOR_CLOSING'
+    if(this.state.targetDoorState == Characteristic.TargetDoorState.OPEN) event = 'DOOR_OPENING'
+    this.processDoorState(event)
   }
 
-  processDoorState()
+  processDoorState(event_name: String)
   {
     this.platform.log.debug('Processing door state..')
+    let event = { type: event_name}
+    this.currentState = this.statemachine.transition(this.currentState, event)
+  }
+
+  testEnter()
+  {
+    this.platform.log.debug('test');
   }
 
   /**
@@ -95,11 +107,13 @@ export class TuyaMqttGarageDoorAccessory {
   {
     if(closed)
     {
+      this.processDoorState('DOOR_CLOSED_DETECTED')
       this.state.currentDoorState = Characteristic.CurrentDoorState.CLOSED
       this.service.updateCharacteristic(Characteristic.CurrentDoorState, 
                                         Characteristic.CurrentDoorState.CLOSED)
     } else
     {
+      this.processDoorState('DOOR_OPEN_DETECTED')
       this.state.currentDoorState = Characteristic.CurrentDoorState.OPEN
       this.service.updateCharacteristic(Characteristic.CurrentDoorState,
                                         Characteristic.CurrentDoorState.OPEN)
@@ -131,5 +145,22 @@ export class TuyaMqttGarageDoorAccessory {
       // if you need to return an error to show the device as "Not Responding" in the Home app:
       // throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
       return this.state.targetDoorState;
+    }
+
+    /// Wait for the door to close. Triggers an event 
+    ///
+    startTimerForDoorClose()
+    {
+      setTimeout(this.handleDoorCloseTimeout, 1500);
+    }
+
+    handleDoorCloseTimeout()
+    {
+      this.processDoorState('DOOR_CLOSE_TIMEOUT')
+    }
+
+    stopTimerForDoorClose()
+    {
+
     }
 }
