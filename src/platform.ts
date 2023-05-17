@@ -107,7 +107,7 @@ export class TuyaMqttGarageDoorPlatform implements DynamicPlatformPlugin {
 
         // create the accessory handler for the newly create accessory
         // this is imported from `platformAccessory.ts`
-        new TuyaMqttGarageDoorAccessory(this, accessory);
+        new TuyaMqttGarageDoorAccessory(this, accessory, this.mqtt_client);
 
         // link the accessory to your platform
         this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);

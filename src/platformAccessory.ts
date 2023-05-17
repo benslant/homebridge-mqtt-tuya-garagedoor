@@ -1,4 +1,5 @@
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
+import { Characteristic } from 'hap-nodejs';
 import { TuyaMqttGarageDoorPlatform } from './platform';
 import { Z2MMqttClient } from './mqtt_client';
 
@@ -17,8 +18,8 @@ export class TuyaMqttGarageDoorAccessory {
   private client: Z2MMqttClient;
 
   private state = {
-    targetDoorState: DoorState.DoorDown,
-    currentDoorState: DoorState.DownUp,
+    targetDoorState: Characteristic.TargetDoorState.CLOSED,
+    currentDoorState: Characteristic.CurrentDoorState.CLOSED,
   };
 
   constructor(private readonly platform: TuyaMqttGarageDoorPlatform,
@@ -27,7 +28,7 @@ export class TuyaMqttGarageDoorAccessory {
   {
     this.client = mqqt_client
     this.client.on('garage_door_contact', (open) => {
-      this.update_current_door_state(open)}
+      this.handle_mqtt_update_current_door_state(open)}
       )
     // set accessory information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
@@ -57,8 +58,14 @@ export class TuyaMqttGarageDoorAccessory {
    */
   async setTargetDoorState(value: CharacteristicValue) {
     // implement your own code to turn your device on/off
-    this.state.targetDoorState = value as DoorState
+    this.state.targetDoorState = value as number
     this.platform.log.debug('Set Door Target state ->', this.state.targetDoorState);
+    this.processDoorState()
+  }
+
+  processDoorState()
+  {
+    this.platform.log.debug('Processing door state..')
   }
 
   /**
@@ -84,18 +91,23 @@ export class TuyaMqttGarageDoorAccessory {
     return currentDoorState;
   }
 
-  update_current_door_state(closed: boolean)
+  handle_mqtt_update_current_door_state(closed: boolean)
   {
     if(closed)
     {
-      this.service.updateCharacteristic(this.platform.Characteristic.CurrentDoorState, 
-                                        this.platform.Characteristic.CurrentDoorState.CLOSED)
+      this.state.currentDoorState = Characteristic.CurrentDoorState.CLOSED
+      this.service.updateCharacteristic(Characteristic.CurrentDoorState, 
+                                        Characteristic.CurrentDoorState.CLOSED)
     } else
     {
-      this.service.updateCharacteristic(this.platform.Characteristic.CurrentDoorState,
-                                        this.platform.Characteristic.CurrentDoorState.OPEN)
+      this.state.currentDoorState = Characteristic.CurrentDoorState.OPEN
+      this.service.updateCharacteristic(Characteristic.CurrentDoorState,
+                                        Characteristic.CurrentDoorState.OPEN)
     }
-    this.platform.log.debug('Received door state ->', closed);
+    let state_text = 'closed'
+    if(!closed) state_text = 'open'
+      
+    this.platform.log.debug('Received door state -> ', state_text)
   }
 
     /**
