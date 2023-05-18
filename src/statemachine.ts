@@ -4,10 +4,14 @@
 import {Logger} from 'homebridge'
 
 
-interface IGarageDoor {
+export interface IGarageDoor {
   testEnter()
   startTimerForDoorClose()
-  stopTimerForDoorClose()
+  startTimerForDoorOpen()
+  handleDoorStuck()
+  handleDoorStopped()
+  handleDoorClosed()
+  handleDoorOpened()
 }
 
 
@@ -64,13 +68,12 @@ export class TuyaGarageDoorStateMachine {
         },
         closed: {
           on: {
-            DATA_RECEIVED: {
-              target: 'success',
-              actions: [
-                { type: 'saveData' }
-              ]
+            DOOR_OPENING: {
+              target: 'wait_for_open',
+              actions: []
             }
-          }
+          },
+          enter: this.garageDoor.handleDoorClosed.bind(this.garageDoor)
         },
         open: {
           on: {
@@ -78,7 +81,8 @@ export class TuyaGarageDoorStateMachine {
               target: 'wait_for_closed',
               actions: []
             }
-          }
+          },
+          enter: this.garageDoor.handleDoorOpened.bind(this.garageDoor)
         },
         wait_for_closed: {
           on: {
@@ -98,8 +102,8 @@ export class TuyaGarageDoorStateMachine {
               target: 'stopped',
               actions: []
             },
-            enter: this.garageDoor.startTimerForDoorClose.bind(this.garageDoor)
-          }
+          },
+          enter: this.garageDoor.startTimerForDoorClose.bind(this.garageDoor)
         },
         wait_for_open: {
           on: {
@@ -119,16 +123,21 @@ export class TuyaGarageDoorStateMachine {
               target: 'stopped',
               actions: []
             },
-            enter: this.garageDoor.startTimerForDoorClose.bind(this.garageDoor)
-          }
+          },
+          enter: this.garageDoor.startTimerForDoorOpen.bind(this.garageDoor)
         },
         stuck: {
           on: {
-            DATA_RECEIVED: {
-              target: 'success',
+            DOOR_CLOSING: {
+              target: 'wait_for_closed',
               actions: []
-            }
-          }
+            },
+            DOOR_OPENING: {
+              target: 'wait_for_open',
+              actions: []
+            },
+          },
+          enter: this.garageDoor.handleDoorStuck.bind(this.garageDoor)
         },
         stopped: {
           on: {
@@ -140,15 +149,8 @@ export class TuyaGarageDoorStateMachine {
               target: 'wait_for_open',
               actions: []
             }
-          }
-        },
-        error: {
-          on: {
-            DATA_RECEIVED: {
-              target: 'success',
-              actions:[]
-            }
-          }
+          },
+          enter: this.garageDoor.handleDoorStopped.bind(this.garageDoor)
         },
       }
     };
@@ -164,28 +166,21 @@ export class TuyaGarageDoorStateMachine {
   {
       let machine = this.getMachine()
       const currentStateNode = machine.states[state.status]
-      const nextStateNode = machine
-        .states[state.status]
-        .on?.[event.type]
-        ?? { target: state.status }
+      if(!currentStateNode)
+      {
+        this.log.error('no current state found! ', state.status)
+      }
+      const event_handler = currentStateNode.on?.[event.type] ?? state.status
+      const nextStateNode = machine.states[event_handler.target]
     
-      const nextState = {
-        ...state,
-        status: nextStateNode.target
-      };
-    
-      // go through the actions to determine
-      // what should be done
-      nextStateNode.actions?.forEach(action => {
-        if (action.type === 'saveData') {
-          nextState.data = event.data
-        }
-      });
-
-      if(currentStateNode.exit) currentStateNode.exit()
-      if(nextStateNode.exit) nextStateNode.enter()
-    
-      if(nextState.status != state.status) this.log.debug(`Leaving ${state.status}... entering ${nextState.status}`)
-      return nextState
+      if(nextStateNode)
+      {
+        if(currentStateNode.exit) currentStateNode.exit()
+        if(nextStateNode.enter) nextStateNode.enter()
+        if(event_handler.target != state.status) this.log.debug(`Leaving ${state.status}... entering ${event_handler.target}`)
+        return {status: event_handler.target}
+      }
+      
+      return {status: state.status}
     }
 }

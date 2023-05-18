@@ -2,18 +2,14 @@ import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 import { Characteristic } from 'hap-nodejs';
 import { TuyaMqttGarageDoorPlatform } from './platform';
 import { Z2MMqttClient } from './mqtt_client';
-import { TuyaGarageDoorStateMachine } from './statemachine'
+import { TuyaGarageDoorStateMachine, IGarageDoor } from './statemachine'
 
 
-/**
- * Platform Accessory
- * An instance of this class is created for each accessory your platform registers
- * Each accessory may expose multiple services of different service types.
- */
-export class TuyaMqttGarageDoorAccessory {
+export class TuyaMqttGarageDoorAccessory implements IGarageDoor {
   private service: Service;
   private client: Z2MMqttClient;
   private statemachine: TuyaGarageDoorStateMachine;
+  private doorOperationTimer: ReturnType<typeof setTimeout>
   private currentState = {
     status: 'initialize'
   }
@@ -21,12 +17,18 @@ export class TuyaMqttGarageDoorAccessory {
   private state = {
     targetDoorState: Characteristic.TargetDoorState.CLOSED,
     currentDoorState: Characteristic.CurrentDoorState.CLOSED,
+    obstructionDetected: false
   };
 
   constructor(private readonly platform: TuyaMqttGarageDoorPlatform,
               private readonly accessory: PlatformAccessory,
               private readonly mqqt_client: Z2MMqttClient) 
   {
+    let that = this
+    this.doorOperationTimer = setInterval(()=>{
+        that.platform.log.error('why!')
+    }, 1000)
+    clearInterval(this.doorOperationTimer)
     this.statemachine = new TuyaGarageDoorStateMachine(this, this.platform.log)
     this.currentState = this.statemachine.getInitialState()
     this.client = mqqt_client
@@ -53,12 +55,11 @@ export class TuyaMqttGarageDoorAccessory {
 
     this.service.getCharacteristic(this.platform.Characteristic.CurrentDoorState)
       .onGet(this.getCurrentDoorState.bind(this))
+
+    this.service.getCharacteristic(this.platform.Characteristic.ObstructionDetected)
+      .onGet(this.getObstructionState.bind(this))
   }
 
-  /**
-   * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory, for example, turning on a Light bulb.
-   */
   async setTargetDoorState(value: CharacteristicValue) {
     // implement your own code to turn your device on/off
     this.state.targetDoorState = value as number
@@ -70,7 +71,6 @@ export class TuyaMqttGarageDoorAccessory {
 
   processDoorState(event_name: String)
   {
-    this.platform.log.debug('Processing door state..')
     let event = { type: event_name}
     this.currentState = this.statemachine.transition(this.currentState, event)
   }
@@ -80,19 +80,6 @@ export class TuyaMqttGarageDoorAccessory {
     this.platform.log.debug('test');
   }
 
-  /**
-   * Handle the "GET" requests from HomeKit
-   * These are sent when HomeKit wants to know the current state of the accessory, for example, checking if a Light bulb is on.
-   *
-   * GET requests should return as fast as possbile. A long delay here will result in
-   * HomeKit being unresponsive and a bad user experience in general.
-   *
-   * If your device takes time to respond you should update the status of your device
-   * asynchronously instead using the `updateCharacteristic` method instead.
-
-   * @example
-   * this.service.updateCharacteristic(this.platform.Characteristic.On, true)
-   */
   async getCurrentDoorState(): Promise<CharacteristicValue> {
     // implement your own code to check if the device is on
     const currentDoorState = this.state.currentDoorState;
@@ -101,6 +88,11 @@ export class TuyaMqttGarageDoorAccessory {
     // if you need to return an error to show the device as "Not Responding" in the Home app:
     // throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     return currentDoorState;
+  }
+
+  async getObstructionState(): Promise<CharacteristicValue> {
+    this.platform.log.debug('Get Obstruction State ->', this.state.obstructionDetected);
+    return this.state.obstructionDetected
   }
 
   handle_mqtt_update_current_door_state(closed: boolean)
@@ -124,43 +116,78 @@ export class TuyaMqttGarageDoorAccessory {
     this.platform.log.debug('Received door state -> ', state_text)
   }
 
-    /**
-   * Handle the "GET" requests from HomeKit
-   * These are sent when HomeKit wants to know the current state of the accessory, for example, checking if a Light bulb is on.
-   *
-   * GET requests should return as fast as possbile. A long delay here will result in
-   * HomeKit being unresponsive and a bad user experience in general.
-   *
-   * If your device takes time to respond you should update the status of your device
-   * asynchronously instead using the `updateCharacteristic` method instead.
+  async getTargetDoorState(): Promise<CharacteristicValue> 
+  {
+    this.platform.log.debug('Get Target Door State ->', this.state.targetDoorState);
 
-   * @example
-   * this.service.updateCharacteristic(this.platform.Characteristic.On, true)
-   */
-    async getTargetDoorState(): Promise<CharacteristicValue> {
-      // implement your own code to check if the device is on
-  
-      this.platform.log.debug('Get Target Door State ->', this.state.targetDoorState);
-  
-      // if you need to return an error to show the device as "Not Responding" in the Home app:
-      // throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
-      return this.state.targetDoorState;
-    }
+    // if you need to return an error to show the device as "Not Responding" in the Home app:
+    // throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+    return this.state.targetDoorState;
+  }
 
     /// Wait for the door to close. Triggers an event 
     ///
     startTimerForDoorClose()
     {
-      setTimeout(this.handleDoorCloseTimeout, 1500);
+      this.state.currentDoorState = Characteristic.CurrentDoorState.CLOSING
+      this.service.updateCharacteristic(Characteristic.CurrentDoorState,
+                                        Characteristic.CurrentDoorState.CLOSING)
+      this.doorOperationTimer = setTimeout(this.handleDoorCloseTimeout.bind(this), 5000);
+    }
+
+    startTimerForDoorOpen()
+    {
+      this.state.currentDoorState = Characteristic.CurrentDoorState.OPENING
+      this.service.updateCharacteristic(Characteristic.CurrentDoorState,
+                                        Characteristic.CurrentDoorState.OPENING)
+      this.doorOperationTimer = setTimeout(this.handleDoorOpenTimeout.bind(this), 5000);
+    }
+
+    handleDoorStopped()
+    {
+      clearTimeout(this.doorOperationTimer)
+      this.platform.log.debug('The door was stopped by user!')
+      this.state.currentDoorState = Characteristic.CurrentDoorState.STOPPED
+      this.service.updateCharacteristic(Characteristic.CurrentDoorState,
+                                        Characteristic.CurrentDoorState.STOPPED)
     }
 
     handleDoorCloseTimeout()
     {
+      this.platform.log.error("Door close operation timedout!")
       this.processDoorState('DOOR_CLOSE_TIMEOUT')
     }
 
-    stopTimerForDoorClose()
+    handleDoorOpenTimeout()
     {
+      this.platform.log.error("Door open operation timedout!")
+      this.processDoorState('DOOR_OPEN_TIMEOUT')
+    }
 
+    handleDoorStuck()
+    {
+      this.platform.log.error("Door is stuck!")
+      this.state.obstructionDetected = true
+      this.state.currentDoorState = Characteristic.CurrentDoorState.STOPPED
+      this.service.updateCharacteristic(Characteristic.CurrentDoorState,
+                                        Characteristic.CurrentDoorState.STOPPED)
+      this.service.updateCharacteristic(Characteristic.ObstructionDetected,
+        this.state.obstructionDetected)
+    }
+
+    handleDoorOpened()
+    {
+      clearTimeout(this.doorOperationTimer)
+      this.state.currentDoorState = Characteristic.CurrentDoorState.OPEN
+      this.service.updateCharacteristic(Characteristic.CurrentDoorState,
+                                        Characteristic.CurrentDoorState.OPEN)
+    }
+
+    handleDoorClosed()
+    {
+      clearTimeout(this.doorOperationTimer)
+      this.state.currentDoorState = Characteristic.CurrentDoorState.CLOSED
+      this.service.updateCharacteristic(Characteristic.CurrentDoorState,
+                                        Characteristic.CurrentDoorState.CLOSED)
     }
 }
