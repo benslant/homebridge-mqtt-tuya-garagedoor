@@ -6,9 +6,10 @@ import {Logger} from 'homebridge'
 
 export interface IGarageDoor {
   testEnter()
-  startTimerForDoorClose()
-  startTimerForDoorOpen()
+  handleDoorClosing()
+  handleDoorOpening()
   handleDoorStuck()
+  handleDoorFreed()
   handleDoorStopped()
   handleDoorClosed()
   handleDoorOpened()
@@ -103,7 +104,7 @@ export class TuyaGarageDoorStateMachine {
               actions: []
             },
           },
-          enter: this.garageDoor.startTimerForDoorClose.bind(this.garageDoor)
+          enter: this.garageDoor.handleDoorClosing.bind(this.garageDoor)
         },
         wait_for_open: {
           on: {
@@ -124,7 +125,7 @@ export class TuyaGarageDoorStateMachine {
               actions: []
             },
           },
-          enter: this.garageDoor.startTimerForDoorOpen.bind(this.garageDoor)
+          enter: this.garageDoor.handleDoorOpening.bind(this.garageDoor)
         },
         stuck: {
           on: {
@@ -137,7 +138,8 @@ export class TuyaGarageDoorStateMachine {
               actions: []
             },
           },
-          enter: this.garageDoor.handleDoorStuck.bind(this.garageDoor)
+          enter: this.garageDoor.handleDoorStuck.bind(this.garageDoor),
+          exit: this.garageDoor.handleDoorFreed.bind(this.garageDoor)
         },
         stopped: {
           on: {

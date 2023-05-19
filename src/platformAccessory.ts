@@ -58,6 +58,7 @@ export class TuyaMqttGarageDoorAccessory implements IGarageDoor {
 
     this.service.getCharacteristic(this.platform.Characteristic.ObstructionDetected)
       .onGet(this.getObstructionState.bind(this))
+    this.broadcastDoorState()
   }
 
   async setTargetDoorState(value: CharacteristicValue) {
@@ -90,6 +91,13 @@ export class TuyaMqttGarageDoorAccessory implements IGarageDoor {
     return currentDoorState;
   }
 
+  broadcastDoorState()
+  {
+    this.service.updateCharacteristic(Characteristic.CurrentDoorState,this.state.currentDoorState)
+    this.service.updateCharacteristic(Characteristic.TargetDoorState,this.state.targetDoorState)
+    this.service.updateCharacteristic(Characteristic.ObstructionDetected,this.state.obstructionDetected)
+  }
+
   async getObstructionState(): Promise<CharacteristicValue> {
     this.platform.log.debug('Get Obstruction State ->', this.state.obstructionDetected);
     return this.state.obstructionDetected
@@ -101,18 +109,14 @@ export class TuyaMqttGarageDoorAccessory implements IGarageDoor {
     {
       this.processDoorState('DOOR_CLOSED_DETECTED')
       this.state.currentDoorState = Characteristic.CurrentDoorState.CLOSED
-      this.service.updateCharacteristic(Characteristic.CurrentDoorState, 
-                                        Characteristic.CurrentDoorState.CLOSED)
     } else
     {
       this.processDoorState('DOOR_OPEN_DETECTED')
       this.state.currentDoorState = Characteristic.CurrentDoorState.OPEN
-      this.service.updateCharacteristic(Characteristic.CurrentDoorState,
-                                        Characteristic.CurrentDoorState.OPEN)
     }
+    this.broadcastDoorState()
     let state_text = 'closed'
-    if(!closed) state_text = 'open'
-      
+    if(!closed) state_text = 'open'  
     this.platform.log.debug('Received door state -> ', state_text)
   }
 
@@ -125,69 +129,86 @@ export class TuyaMqttGarageDoorAccessory implements IGarageDoor {
     return this.state.targetDoorState;
   }
 
-    /// Wait for the door to close. Triggers an event 
-    ///
-    startTimerForDoorClose()
-    {
-      this.state.currentDoorState = Characteristic.CurrentDoorState.CLOSING
-      this.service.updateCharacteristic(Characteristic.CurrentDoorState,
-                                        Characteristic.CurrentDoorState.CLOSING)
-      this.doorOperationTimer = setTimeout(this.handleDoorCloseTimeout.bind(this), 5000);
-    }
+  handleDoorOpening()
+  {
+    this.startTimerForDoorOpen()
+    this.triggerDoor()
+  }
 
-    startTimerForDoorOpen()
-    {
-      this.state.currentDoorState = Characteristic.CurrentDoorState.OPENING
-      this.service.updateCharacteristic(Characteristic.CurrentDoorState,
-                                        Characteristic.CurrentDoorState.OPENING)
-      this.doorOperationTimer = setTimeout(this.handleDoorOpenTimeout.bind(this), 5000);
-    }
+  handleDoorClosing()
+  {
+    this.startTimerForDoorClose()
+    this.triggerDoor()
+  }
 
-    handleDoorStopped()
-    {
-      clearTimeout(this.doorOperationTimer)
-      this.platform.log.debug('The door was stopped by user!')
-      this.state.currentDoorState = Characteristic.CurrentDoorState.STOPPED
-      this.service.updateCharacteristic(Characteristic.CurrentDoorState,
-                                        Characteristic.CurrentDoorState.STOPPED)
-    }
+  triggerDoor()
+  {
+    this.mqqt_client.publishTopic({trigger: true})
+  }
 
-    handleDoorCloseTimeout()
-    {
-      this.platform.log.error("Door close operation timedout!")
-      this.processDoorState('DOOR_CLOSE_TIMEOUT')
-    }
+  /// Wait for the door to close. Triggers an event 
+  ///
+  startTimerForDoorClose()
+  {
+    this.state.currentDoorState = Characteristic.CurrentDoorState.CLOSING
+    this.broadcastDoorState()
+    this.doorOperationTimer = setTimeout(this.handleDoorCloseTimeout.bind(this), 5000);
+  }
 
-    handleDoorOpenTimeout()
-    {
-      this.platform.log.error("Door open operation timedout!")
-      this.processDoorState('DOOR_OPEN_TIMEOUT')
-    }
+  startTimerForDoorOpen()
+  {
+    this.state.currentDoorState = Characteristic.CurrentDoorState.OPENING
+    this.broadcastDoorState()
+    this.doorOperationTimer = setTimeout(this.handleDoorOpenTimeout.bind(this), 5000);
+  }
 
-    handleDoorStuck()
-    {
-      this.platform.log.error("Door is stuck!")
-      this.state.obstructionDetected = true
-      this.state.currentDoorState = Characteristic.CurrentDoorState.STOPPED
-      this.service.updateCharacteristic(Characteristic.CurrentDoorState,
-                                        Characteristic.CurrentDoorState.STOPPED)
-      this.service.updateCharacteristic(Characteristic.ObstructionDetected,
-        this.state.obstructionDetected)
-    }
+  handleDoorStopped()
+  {
+    clearTimeout(this.doorOperationTimer)
+    this.platform.log.debug('The door was stopped by user!')
+    this.state.currentDoorState = Characteristic.CurrentDoorState.STOPPED
+    this.broadcastDoorState()
+  }
 
-    handleDoorOpened()
-    {
-      clearTimeout(this.doorOperationTimer)
-      this.state.currentDoorState = Characteristic.CurrentDoorState.OPEN
-      this.service.updateCharacteristic(Characteristic.CurrentDoorState,
-                                        Characteristic.CurrentDoorState.OPEN)
-    }
+  handleDoorCloseTimeout()
+  {
+    this.platform.log.error("Door close operation timedout!")
+    this.processDoorState('DOOR_CLOSE_TIMEOUT')
+  }
 
-    handleDoorClosed()
-    {
-      clearTimeout(this.doorOperationTimer)
-      this.state.currentDoorState = Characteristic.CurrentDoorState.CLOSED
-      this.service.updateCharacteristic(Characteristic.CurrentDoorState,
-                                        Characteristic.CurrentDoorState.CLOSED)
-    }
+  handleDoorOpenTimeout()
+  {
+    this.platform.log.error("Door open operation timedout!")
+    this.processDoorState('DOOR_OPEN_TIMEOUT')
+  }
+
+  handleDoorStuck()
+  {
+    this.platform.log.error("Door is stuck!")
+    this.state.obstructionDetected = true
+    this.state.currentDoorState = Characteristic.CurrentDoorState.STOPPED
+    this.broadcastDoorState()
+  }
+
+  handleDoorFreed() 
+  {
+    this.state.obstructionDetected = false
+    this.broadcastDoorState()
+  }
+
+  handleDoorOpened()
+  {
+    clearTimeout(this.doorOperationTimer)
+    this.state.currentDoorState = Characteristic.CurrentDoorState.OPEN
+    this.service.updateCharacteristic(Characteristic.CurrentDoorState,
+                                      Characteristic.CurrentDoorState.OPEN)
+  }
+
+  handleDoorClosed()
+  {
+    clearTimeout(this.doorOperationTimer)
+    this.state.currentDoorState = Characteristic.CurrentDoorState.CLOSED
+    this.service.updateCharacteristic(Characteristic.CurrentDoorState,
+                                      Characteristic.CurrentDoorState.CLOSED)
+  }
 }

@@ -5,6 +5,9 @@ import * as events from 'events'
 export class Z2MMqttClient extends events.EventEmitter {
     public readonly client: Client
     public readonly log: Logger
+    private readonly baseTopic: string
+    private readonly displayName: string
+    private readonly door_set_topic: string
 
     constructor(public readonly logger: Logger,
                 public readonly config: PlatformConfig) 
@@ -13,13 +16,24 @@ export class Z2MMqttClient extends events.EventEmitter {
         this.log = logger
         let handler_object = this
         let client = connect(config.mqtt.server)
+        this.baseTopic = config.mqtt.base_topic
+        this.displayName = config.door.displayname
+        const door_base_topic = `${this.baseTopic}/${this.displayName}`
+        this.door_set_topic = `${door_base_topic}/set`
+
+        const set_topic = this.door_set_topic
 
         client.on('connect', function () {
-            client.subscribe('zigbee2mqtt/Garage Door', function (err) {
+            client.subscribe(door_base_topic, function (err) {
               if (!err) {
-                logger.info('subscribed')
+                logger.info('subscribed to base topic')
               }
             })
+            client.subscribe(set_topic, function (err) {
+                if (!err) {
+                  logger.info('subscribed to set topic')
+                }
+              })
           })
         client.on('message', this.processMessage.bind(this));
         this.client = client
@@ -30,15 +44,8 @@ export class Z2MMqttClient extends events.EventEmitter {
         this.subscribeTopics('zigbee2mqtt/Garage Door')
     }
 
-    publishTopic(char, topicDefines, state, callback) {
-        const client = this.client;
-        const log = this.log;
-
-        client.publish(topicDefines.set, JSON.stringify({
-            value: state,
-        }));
-        log.info(char.displayName + ' set to ' + state);
-        callback(null);
+    publishTopic(payload) {
+        this.client.publish(this.door_set_topic, JSON.stringify(payload));
     }
 
     processMessage(char, message) {
