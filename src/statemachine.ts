@@ -67,6 +67,11 @@ export class TuyaGarageDoorStateMachine {
         },
         closed: {
           on: {
+            HOMEKIT_REQUESTS_DOOR_OPEN:
+            {
+              target: 'wait_for_open',
+              actions: []
+            },
             DOOR_TRIGGERED: {
               target: 'wait_for_open',
               actions: []
@@ -76,6 +81,11 @@ export class TuyaGarageDoorStateMachine {
         },
         open: {
           on: {
+            HOMEKIT_REQUESTS_DOOR_OPEN:
+            {
+              target: 'wait_for_closed',
+              actions: []
+            },
             DOOR_TRIGGERED: {
               target: 'wait_for_closed',
               actions: []
@@ -93,6 +103,11 @@ export class TuyaGarageDoorStateMachine {
               target: 'stuck',
               actions: []
             },
+            HOMEKIT_REQUESTS_DOOR_OPEN:
+            {
+              target: 'stopped_waiting_for_close',
+              actions: []
+            },
             DOOR_TRIGGERED: {
               target: 'stopped_waiting_for_close',
               actions: []
@@ -108,6 +123,11 @@ export class TuyaGarageDoorStateMachine {
             },
             DOOR_OPEN_TIMEOUT: {
               target: 'stuck',
+              actions: []
+            },
+            HOMEKIT_REQUESTS_DOOR_CLOSE:
+            {
+              target: 'stopped_waiting_for_open',
               actions: []
             },
             DOOR_TRIGGERED: {

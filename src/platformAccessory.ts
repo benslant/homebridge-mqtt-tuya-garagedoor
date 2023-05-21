@@ -69,8 +69,8 @@ export class TuyaMqttGarageDoorAccessory implements IGarageDoor {
     this.state.targetDoorState = value as number
     if(value==0) this.platform.log.debug('Set Door Target state -> OPEN');
     if(value==1) this.platform.log.debug('Set Door Target state -> CLOSED');
-    let event = 'DOOR_CLOSING'
-    if(this.state.targetDoorState == Characteristic.TargetDoorState.OPEN) event = 'DOOR_OPENING'
+    let event = 'HOMEKIT_REQUESTS_DOOR_CLOSE'
+    if(this.state.targetDoorState == Characteristic.TargetDoorState.OPEN) event = 'HOMEKIT_REQUESTS_DOOR_OPEN'
     this.processDoorState(event)
   }
 
@@ -147,13 +147,11 @@ export class TuyaMqttGarageDoorAccessory implements IGarageDoor {
   handleDoorOpening()
   {
     this.startTimerForDoorOpen()
-    this.triggerDoor()
   }
 
   handleDoorClosing()
   {
     this.startTimerForDoorClose()
-    this.triggerDoor()
   }
 
   triggerDoor()
