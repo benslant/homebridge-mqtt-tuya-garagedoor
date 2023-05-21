@@ -52,21 +52,10 @@ export class Z2MMqttClient extends events.EventEmitter {
         const log = this.log;
         const payload = JSON.parse(message);
 
-        this.emit('garage_door_contact', payload.garage_door_contact)
-        this.emit('trigger', payload.trigger)
-
-        // if (topicDefines.get == topic) {
-        //     char.updateValue(payload.value);
-        //     log.info(char.displayName + ' value updated to ' + payload.value);
-        // }
-        // Object.keys(topicDefines.props || {}).forEach(propKey => {
-        //     if (topicDefines.props[propKey] == topic) {
-        //         char.setProp({
-        //             [propKey]: payload.value,
-        //         });
-        //         log.info(char.displayName + ' ' + propKey + ' updated to ' + payload.value);
-        //     }
-        // });
+        if(payload.garage_door_contact != null)
+            this.emit('garage_door_contact', payload.garage_door_contact)
+        if(payload.trigger != null)
+            this.emit('trigger', payload.trigger)
     }
 
     subscribeTopics(topicDefines) {

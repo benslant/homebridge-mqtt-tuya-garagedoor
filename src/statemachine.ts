@@ -5,7 +5,7 @@ import {Logger} from 'homebridge'
 
 
 export interface IGarageDoor {
-  testEnter()
+  handleInitStateDetected()
   handleDoorClosing()
   handleDoorOpening()
   handleDoorStuck()
@@ -36,16 +36,14 @@ export class TuyaGarageDoorStateMachine {
           on: {
             DOOR_OPEN_DETECTED: {
               target: 'open',
-              actions: [
-                { type: 'saveData', }
-              ]
+              actions: []
             },
-            DOOR_CLOSED_DETECTED: {
+            DOOR_CLOSE_DETECTED: {
               target: 'closed',
               actions: []
             }
           },
-          exit: this.garageDoor.testEnter.bind(this.garageDoor),
+          exit: this.garageDoor.handleInitStateDetected.bind(this.garageDoor)
         },
         opening: {
           on: {
@@ -69,7 +67,7 @@ export class TuyaGarageDoorStateMachine {
         },
         closed: {
           on: {
-            DOOR_OPENING: {
+            DOOR_TRIGGERED: {
               target: 'wait_for_open',
               actions: []
             }
@@ -78,7 +76,7 @@ export class TuyaGarageDoorStateMachine {
         },
         open: {
           on: {
-            DOOR_CLOSING: {
+            DOOR_TRIGGERED: {
               target: 'wait_for_closed',
               actions: []
             }
@@ -87,7 +85,7 @@ export class TuyaGarageDoorStateMachine {
         },
         wait_for_closed: {
           on: {
-            DOOR_CLOSED: {
+            DOOR_CLOSE_DETECTED: {
               target: 'closed',
               actions: []
             },
@@ -95,12 +93,8 @@ export class TuyaGarageDoorStateMachine {
               target: 'stuck',
               actions: []
             },
-            DOOR_STOPPED: {
-              target: 'stopped',
-              actions: []
-            },
-            DOOR_OPENING: {
-              target: 'stopped',
+            DOOR_TRIGGERED: {
+              target: 'stopped_waiting_for_close',
               actions: []
             },
           },
@@ -108,7 +102,7 @@ export class TuyaGarageDoorStateMachine {
         },
         wait_for_open: {
           on: {
-            DOOR_OPEN: {
+            DOOR_OPEN_DETECTED: {
               target: 'open',
               actions: []
             },
@@ -116,12 +110,8 @@ export class TuyaGarageDoorStateMachine {
               target: 'stuck',
               actions: []
             },
-            DOOR_STOPPED: {
-              target: 'stopped',
-              actions: []
-            },
-            DOOR_CLOSING: {
-              target: 'stopped',
+            DOOR_TRIGGERED: {
+              target: 'stopped_waiting_for_open',
               actions: []
             },
           },
@@ -141,16 +131,21 @@ export class TuyaGarageDoorStateMachine {
           enter: this.garageDoor.handleDoorStuck.bind(this.garageDoor),
           exit: this.garageDoor.handleDoorFreed.bind(this.garageDoor)
         },
-        stopped: {
+        stopped_waiting_for_close: {
           on: {
-            DOOR_CLOSING: {
+            DOOR_TRIGGERED: {
+              target: 'wait_for_open',
+              actions: []
+            },
+          },
+          enter: this.garageDoor.handleDoorStopped.bind(this.garageDoor)
+        },
+        stopped_waiting_for_open: {
+          on: {
+            DOOR_TRIGGERED: {
               target: 'wait_for_closed',
               actions: []
             },
-            DOOR_OPENING: {
-              target: 'wait_for_open',
-              actions: []
-            }
           },
           enter: this.garageDoor.handleDoorStopped.bind(this.garageDoor)
         },
