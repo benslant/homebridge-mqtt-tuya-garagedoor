@@ -45,12 +45,15 @@ export class Z2MMqttClient extends events.EventEmitter {
     }
 
     publishTopic(payload) {
+        payload.sender = 'hb-tuya-garagedoor-accessory'
         this.client.publish(this.door_set_topic, JSON.stringify(payload));
     }
 
-    processMessage(char, message) {
+    processMessage(char, message, packet) {
         const log = this.log;
         const payload = JSON.parse(message);
+        if(payload.sender && payload.sender == 'hb-tuya-garagedoor-accessory') return
+        log.debug('packet: ', packet)
 
         if(payload.garage_door_contact != null)
             this.emit('garage_door_contact', payload.garage_door_contact)

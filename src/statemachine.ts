@@ -13,6 +13,7 @@ export interface IGarageDoor {
   handleDoorStopped()
   handleDoorClosed()
   handleDoorOpened()
+  triggerDoor()
 }
 
 
@@ -70,7 +71,7 @@ export class TuyaGarageDoorStateMachine {
             HOMEKIT_REQUESTS_DOOR_OPEN:
             {
               target: 'wait_for_open',
-              actions: []
+              actions: [this.garageDoor.triggerDoor.bind(this.garageDoor)]
             },
             DOOR_TRIGGERED: {
               target: 'wait_for_open',
@@ -81,10 +82,10 @@ export class TuyaGarageDoorStateMachine {
         },
         open: {
           on: {
-            HOMEKIT_REQUESTS_DOOR_OPEN:
+            HOMEKIT_REQUESTS_DOOR_CLOSE:
             {
               target: 'wait_for_closed',
-              actions: []
+              actions: [this.garageDoor.triggerDoor.bind(this.garageDoor)]
             },
             DOOR_TRIGGERED: {
               target: 'wait_for_closed',
@@ -139,11 +140,11 @@ export class TuyaGarageDoorStateMachine {
         },
         stuck: {
           on: {
-            DOOR_CLOSING: {
+            HOMEKIT_REQUESTS_DOOR_CLOSE: {
               target: 'wait_for_closed',
               actions: []
             },
-            DOOR_OPENING: {
+            HOMEKIT_REQUESTS_DOOR_OPEN: {
               target: 'wait_for_open',
               actions: []
             },
@@ -190,6 +191,13 @@ export class TuyaGarageDoorStateMachine {
       const event_handler = currentStateNode.on?.[event.type] ?? state.status
       const nextStateNode = machine.states[event_handler.target]
     
+      if(event_handler.actions)
+      {
+        event_handler.actions.forEach(action => {
+          action()
+        });
+      }
+
       if(nextStateNode)
       {
         if(currentStateNode.exit) currentStateNode.exit()
