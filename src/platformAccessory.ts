@@ -17,7 +17,9 @@ export class TuyaMqttGarageDoorAccessory implements IGarageDoor {
   private state = {
     targetDoorState: Characteristic.TargetDoorState.CLOSED,
     currentDoorState: Characteristic.CurrentDoorState.CLOSED,
-    obstructionDetected: false
+    obstructionDetected: false,
+    trigger_state_detected: false,
+    last_trigger_state: false
   };
 
   constructor(private readonly platform: TuyaMqttGarageDoorPlatform,
@@ -80,14 +82,43 @@ export class TuyaMqttGarageDoorAccessory implements IGarageDoor {
     this.currentState = this.statemachine.transition(this.currentState, event)
   }
 
+  getCurrentDoorStateName(state: number)
+  {
+    let currentDoorStateName = 'OPEN'
+    if(this.state.currentDoorState == 1) currentDoorStateName = 'CLOSED'
+    if(this.state.currentDoorState == 2) currentDoorStateName = 'OPENING'
+    if(this.state.currentDoorState == 3) currentDoorStateName = 'CLOSING'
+    if(this.state.currentDoorState == 4) currentDoorStateName = 'STOPPED'
+    return currentDoorStateName
+  }
+
+  getTargetDoorStateName(state: number)
+  {
+    let targetDoorStateName = 'CLOSED'
+    if(this.state.targetDoorState == 0) targetDoorStateName = 'OPEN'
+    return targetDoorStateName
+  }
+
   async getCurrentDoorState(): Promise<CharacteristicValue> {
+    let currentDoorStateName = this.getCurrentDoorStateName(this.state.currentDoorState)
     // implement your own code to check if the device is on
     const currentDoorState = this.state.currentDoorState;
-    this.platform.log.debug('Get Door Current State ->', currentDoorState);
+    this.platform.log.debug('HomeKit Requests Current Door State, Returning -> ', currentDoorStateName);
 
     // if you need to return an error to show the device as "Not Responding" in the Home app:
     // throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     return currentDoorState;
+  }
+
+  async getTargetDoorState(): Promise<CharacteristicValue> 
+  {
+    let targetDoorStateName = this.getTargetDoorStateName(this.state.targetDoorState)
+    
+    this.platform.log.debug('HomeKit Requests Target Door State, Returning ->', targetDoorStateName);
+    if(this.currentState.status == 'waiting_for_door_state')
+      throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+
+    return this.state.targetDoorState;
   }
 
   broadcastDoorState()
@@ -95,24 +126,35 @@ export class TuyaMqttGarageDoorAccessory implements IGarageDoor {
     this.service.updateCharacteristic(this.platform.Characteristic.CurrentDoorState,this.state.currentDoorState)
     this.service.updateCharacteristic(this.platform.Characteristic.TargetDoorState,this.state.targetDoorState)
     this.service.updateCharacteristic(this.platform.Characteristic.ObstructionDetected,this.state.obstructionDetected)
+    this.platform.log.debug(`Updating Door State: Target: ${this.getTargetDoorStateName(this.state.targetDoorState)} Current: ${this.getCurrentDoorStateName(this.state.currentDoorState)} Obstructed: ${this.state.obstructionDetected}`)
   }
 
   async getObstructionState(): Promise<CharacteristicValue> {
-    this.platform.log.debug('Get Obstruction State ->', this.state.obstructionDetected);
+    this.platform.log.debug('HomeKit Requests Door Obstruction State, Returning ->', this.state.obstructionDetected);
     return this.state.obstructionDetected
   }
 
   handle_mqtt_door_trigger(trigger: boolean)
   {
-    if(trigger)
-      this.processDoorState('DOOR_TRIGGERED')
+    if(this.state.trigger_state_detected)
+    {
+      if(trigger != this.state.last_trigger_state)
+      {
+        this.state.last_trigger_state = trigger
+        this.processDoorState('DOOR_TRIGGERED')
+      }
+      else
+      {
+      this.state.trigger_state_detected = true
+      this.state.last_trigger_state = trigger
+      }
+    }
   }
 
   handle_mqtt_update_current_door_state(closed: boolean)
   {
     let state_text = 'closed'
     if(!closed) state_text = 'open'  
-    this.platform.log.debug('Received door state -> ', state_text)
     if(closed)
     {
       this.state.currentDoorState = Characteristic.CurrentDoorState.CLOSED
@@ -123,15 +165,6 @@ export class TuyaMqttGarageDoorAccessory implements IGarageDoor {
       this.processDoorState('DOOR_OPEN_DETECTED')
     }
     this.broadcastDoorState()
-  }
-
-  async getTargetDoorState(): Promise<CharacteristicValue> 
-  {
-    this.platform.log.debug('Get Target Door State ->', this.state.targetDoorState);
-    if(this.currentState.status == 'waiting_for_door_state')
-      throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
-
-    return this.state.targetDoorState;
   }
 
   handleInitStateDetected()
@@ -159,20 +192,32 @@ export class TuyaMqttGarageDoorAccessory implements IGarageDoor {
     this.mqqt_client.publishTopic({trigger: true})
   }
 
+  door_up()
+  {
+    this.platform.log.debug('Triggering door up')
+    this.mqqt_client.publishTopic({trigger: true})
+  }
+
+  door_down()
+  {
+    this.platform.log.debug('Triggering door down')
+    this.mqqt_client.publishTopic({trigger: false})
+  }
+
   /// Wait for the door to close. Triggers an event 
   ///
   startTimerForDoorClose()
   {
     this.state.currentDoorState = Characteristic.CurrentDoorState.CLOSING
     this.broadcastDoorState()
-    this.doorOperationTimer = setTimeout(this.handleDoorCloseTimeout.bind(this), 15000);
+    this.doorOperationTimer = setTimeout(this.handleDoorCloseTimeout.bind(this), 20000);
   }
 
   startTimerForDoorOpen()
   {
     this.state.currentDoorState = Characteristic.CurrentDoorState.OPENING
     this.broadcastDoorState()
-    this.doorOperationTimer = setTimeout(this.handleDoorOpenTimeout.bind(this), 15000);
+    this.doorOperationTimer = setTimeout(this.handleDoorOpenTimeout.bind(this), 20000);
   }
 
   handleDoorStopped()
@@ -221,5 +266,9 @@ export class TuyaMqttGarageDoorAccessory implements IGarageDoor {
     clearTimeout(this.doorOperationTimer)
     this.state.currentDoorState = Characteristic.CurrentDoorState.CLOSED
     this.broadcastDoorState()
+  }
+
+  test() {
+    this.platform.log.debug('Test handler triggered')
   }
 }

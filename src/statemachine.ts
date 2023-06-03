@@ -14,6 +14,9 @@ export interface IGarageDoor {
   handleDoorClosed()
   handleDoorOpened()
   triggerDoor()
+  test()
+  door_up()
+  door_down()
 }
 
 
@@ -37,7 +40,7 @@ export class TuyaGarageDoorStateMachine {
           on: {
             DOOR_OPEN_DETECTED: {
               target: 'open',
-              actions: []
+              actions: [this.garageDoor.test.bind(this.garageDoor)]
             },
             DOOR_CLOSE_DETECTED: {
               target: 'closed',
@@ -71,10 +74,14 @@ export class TuyaGarageDoorStateMachine {
             HOMEKIT_REQUESTS_DOOR_OPEN:
             {
               target: 'wait_for_open',
-              actions: [this.garageDoor.triggerDoor.bind(this.garageDoor)]
+              actions: [this.garageDoor.door_up.bind(this.garageDoor)]
             },
             DOOR_TRIGGERED: {
               target: 'wait_for_open',
+              actions: []
+            },
+            DOOR_OPEN_DETECTED: {
+              target: 'open',
               actions: []
             }
           },
@@ -85,10 +92,14 @@ export class TuyaGarageDoorStateMachine {
             HOMEKIT_REQUESTS_DOOR_CLOSE:
             {
               target: 'wait_for_closed',
-              actions: [this.garageDoor.triggerDoor.bind(this.garageDoor)]
+              actions: [this.garageDoor.door_down.bind(this.garageDoor)]
             },
             DOOR_TRIGGERED: {
               target: 'wait_for_closed',
+              actions: []
+            },
+            DOOR_CLOSE_DETECTED: {
+              target: 'closed',
               actions: []
             }
           },
@@ -107,7 +118,7 @@ export class TuyaGarageDoorStateMachine {
             HOMEKIT_REQUESTS_DOOR_OPEN:
             {
               target: 'stopped_waiting_for_close',
-              actions: []
+              actions: [this.garageDoor.triggerDoor.bind(this.garageDoor)]
             },
             DOOR_TRIGGERED: {
               target: 'stopped_waiting_for_close',
@@ -129,7 +140,7 @@ export class TuyaGarageDoorStateMachine {
             HOMEKIT_REQUESTS_DOOR_CLOSE:
             {
               target: 'stopped_waiting_for_open',
-              actions: []
+              actions: [this.garageDoor.triggerDoor.bind(this.garageDoor)]
             },
             DOOR_TRIGGERED: {
               target: 'stopped_waiting_for_open',
@@ -142,11 +153,11 @@ export class TuyaGarageDoorStateMachine {
           on: {
             HOMEKIT_REQUESTS_DOOR_CLOSE: {
               target: 'wait_for_closed',
-              actions: []
+              actions: [this.garageDoor.door_down.bind(this.garageDoor)]
             },
             HOMEKIT_REQUESTS_DOOR_OPEN: {
               target: 'wait_for_open',
-              actions: []
+              actions: [this.garageDoor.door_up.bind(this.garageDoor)]
             },
           },
           enter: this.garageDoor.handleDoorStuck.bind(this.garageDoor),
@@ -158,6 +169,10 @@ export class TuyaGarageDoorStateMachine {
               target: 'wait_for_open',
               actions: []
             },
+            HOMEKIT_REQUESTS_DOOR_OPEN: {
+              target: 'wait_for_open',
+              actions: [this.garageDoor.door_up.bind(this.garageDoor)]
+            }
           },
           enter: this.garageDoor.handleDoorStopped.bind(this.garageDoor)
         },
@@ -167,6 +182,10 @@ export class TuyaGarageDoorStateMachine {
               target: 'wait_for_closed',
               actions: []
             },
+            HOMEKIT_REQUESTS_DOOR_CLOSE: {
+              target: 'wait_for_close',
+              actions: [this.garageDoor.door_down.bind(this.garageDoor)]
+            }
           },
           enter: this.garageDoor.handleDoorStopped.bind(this.garageDoor)
         },
